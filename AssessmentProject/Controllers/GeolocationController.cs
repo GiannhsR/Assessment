@@ -1,7 +1,10 @@
 ﻿using AssessmentProject.BLL.BackgroundServices;
 using AssessmentProject.BLL.Services;
 using AssessmentProject.BLL.ViewModels;
+using Hangfire;
+using Hangfire.Storage;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -12,9 +15,12 @@ namespace AssessmentProject.Controllers
     public class GeolocationController : ControllerBase
     {
         public GeolocationService _geolocationService;
-        public GeolocationController(GeolocationService geolocationService)
+        private readonly IBackgroundJobClient _backgroundJobs;
+
+        public GeolocationController(GeolocationService geolocationService,IBackgroundJobClient backgroundJobs)
         {
             _geolocationService = geolocationService;
+            _backgroundJobs = backgroundJobs;
         }
 
         [HttpGet("Info/")]
@@ -30,17 +36,24 @@ namespace AssessmentProject.Controllers
         }
 
         [HttpPost("IP")]
-        public async Task<IActionResult> PostListOfIPsAsync(InputModel input)
+        public  ActionResult PostListOfIPsAsync(InputModel input)
         {
-            await Task.Run(async () =>
-             {
-                 foreach (string givenIp in input.list)
-                 {
-                     await _geolocationService.GetGeolocationInfo(givenIp);
-                 }
-             });
+            var jobId = _backgroundJobs.Schedule(() => _geolocationService.GetGeolocationInfoForMultipleIP(input.list),TimeSpan.FromSeconds(60));
 
-            return Ok();
+            var returnUrl = @"api/Geolocation/Progress/" + jobId.ToString();
+
+            return Ok(returnUrl);
+        }
+
+        [HttpGet("Progress/{jobId:int}")]
+        public string GetProgress(int jobId)
+        {
+            IStorageConnection connection = JobStorage.Current.GetConnection();
+            JobData jobData = connection.GetJobData(jobId.ToString());
+
+            string stateName = jobData.State;
+
+            return stateName;
         }
     }
     public class InputModel

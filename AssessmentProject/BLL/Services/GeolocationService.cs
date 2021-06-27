@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using AssessmentProject.BLL.ViewModels;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace AssessmentProject.BLL.Services
 {
@@ -38,6 +39,16 @@ namespace AssessmentProject.BLL.Services
             var geolocation = JsonConvert.DeserializeObject<Geolocation>(content);
             GeolocationViewModel geolocationViewModel = new GeolocationViewModel(geolocation);
             return geolocationViewModel;
+        }
+
+        public async Task<List<GeolocationViewModel>> GetGeolocationInfoForMultipleIP(List<string> list)
+        {
+            List<GeolocationViewModel> myList = new List<GeolocationViewModel>();
+            foreach(var givenIp in list)
+            {
+                myList.Add(await GetGeolocationInfo(givenIp));
+            }
+            return myList;
         }
 
         private string ValidateIP(string ip)

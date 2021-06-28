@@ -1,4 +1,3 @@
-using AssessmentProject.BLL.BackgroundServices;
 using AssessmentProject.BLL.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -24,6 +23,8 @@ namespace AssessmentProject
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddScoped<GeolocationService>();
+            services.AddScoped<BLL.Services.BackgroundServices.BackgroundService>();
+
             services.AddHttpClient();
 
             // Add Hangfire services.

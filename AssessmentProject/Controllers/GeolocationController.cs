@@ -1,8 +1,7 @@
-﻿using AssessmentProject.BLL.BackgroundServices;
-using AssessmentProject.BLL.Services;
+﻿using AssessmentProject.BLL.Services;
+using AssessmentProject.BLL.Services.BackgroundServices;
 using AssessmentProject.BLL.ViewModels;
-using Hangfire;
-using Hangfire.Storage;
+
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -15,12 +14,11 @@ namespace AssessmentProject.Controllers
     public class GeolocationController : ControllerBase
     {
         public GeolocationService _geolocationService;
-        private readonly IBackgroundJobClient _backgroundJobs;
-
-        public GeolocationController(GeolocationService geolocationService,IBackgroundJobClient backgroundJobs)
+        public BackgroundService _backgroundService;
+        public GeolocationController(GeolocationService geolocationService,BackgroundService backgroundService)
         {
             _geolocationService = geolocationService;
-            _backgroundJobs = backgroundJobs;
+            _backgroundService = backgroundService;
         }
 
         [HttpGet("Info/")]
@@ -36,22 +34,22 @@ namespace AssessmentProject.Controllers
         }
 
         [HttpPost("IP")]
-        public  ActionResult PostListOfIPsAsync(InputModel input)
+        public IActionResult PostListOfIPsAsync(InputModel input)
         {
-            var jobId = _backgroundJobs.Schedule(() => _geolocationService.GetGeolocationInfoForMultipleIP(input.list),TimeSpan.FromSeconds(60));
+            var jobId = _backgroundService.EnqueueJob(input.list);
 
-            var returnUrl = @"api/Geolocation/Progress/" + jobId.ToString();
-
-            return Ok(returnUrl);
+            return Ok(GetProgress(jobId));
         }
 
         [HttpGet("Progress/{jobId:int}")]
-        public string GetProgress(int jobId)
+        public ActionResult<string> GetProgress(int jobId)
         {
-            IStorageConnection connection = JobStorage.Current.GetConnection();
-            JobData jobData = connection.GetJobData(jobId.ToString());
+            var stateName = _backgroundService.GetJobState(jobId);
 
-            string stateName = jobData.State;
+            if(stateName == null)
+            {
+                return NotFound();
+            }
 
             return stateName;
         }
